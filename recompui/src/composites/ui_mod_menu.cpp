@@ -11,14 +11,55 @@
 #include "librecomp/mods.hpp"
 
 #include <string>
+#include <filesystem>
 
-#ifdef WIN32
+#if defined(__ANDROID__)
+#include <jni.h>
+#include <SDL_system.h>
+#elif defined(WIN32)
 #include <shellapi.h>
 #endif
 
 // TODO:
 // - Set up navigation.
 // - Add hover and active state for mod entries.
+
+#if defined(__ANDROID__)
+namespace {
+
+bool launch_android_mod_file_picker() {
+    JNIEnv* env = static_cast<JNIEnv*>(SDL_AndroidGetJNIEnv());
+    jobject activity = static_cast<jobject>(SDL_AndroidGetActivity());
+    if (env == nullptr || activity == nullptr) {
+        return false;
+    }
+
+    jclass activity_class = env->GetObjectClass(activity);
+    if (activity_class == nullptr) {
+        env->DeleteLocalRef(activity);
+        return false;
+    }
+
+    jmethodID method = env->GetMethodID(activity_class, "openModFilePicker", "()V");
+    if (method == nullptr) {
+        env->DeleteLocalRef(activity_class);
+        env->DeleteLocalRef(activity);
+        return false;
+    }
+
+    env->CallVoidMethod(activity, method);
+    bool ok = !env->ExceptionCheck();
+    if (!ok) {
+        env->ExceptionClear();
+    }
+
+    env->DeleteLocalRef(activity_class);
+    env->DeleteLocalRef(activity);
+    return ok;
+}
+
+} // namespace
+#endif
 
 namespace recompui {
 
@@ -289,7 +330,15 @@ void ModMenu::refresh_mods(bool scan_mods) {
 
 void ModMenu::open_mods_folder() {
     std::filesystem::path mods_directory = recomp::mods::get_mods_directory();
-#if defined(WIN32)
+    std::error_code ec;
+    std::filesystem::create_directories(mods_directory, ec);
+#if defined(__ANDROID__)
+    const std::string message =
+        "Android keeps this mods directory in app-private storage, so external file managers cannot open it directly.\n\n"
+        "Use Install Mods to import ZIP/RTZ files from Downloads or another document provider.\n\n"
+        "Internal mods path:\n" + mods_directory.string();
+    recompui::file::show_error_message_box("Mods Folder", message.c_str());
+#elif defined(WIN32)
     std::wstring path_wstr = mods_directory.wstring();
     ShellExecuteW(NULL, L"open", path_wstr.c_str(), NULL, NULL, SW_SHOWDEFAULT);
 #elif defined(__linux__)
@@ -304,6 +353,11 @@ void ModMenu::open_mods_folder() {
 }
 
 void ModMenu::open_install_dialog() {
+#if defined(__ANDROID__)
+    if (!launch_android_mod_file_picker()) {
+        recompui::file::show_error_message_box("Install Mods", "Unable to open the Android file picker.");
+    }
+#else
     recompui::file::open_file_dialog_multiple([](bool success, const std::list<std::filesystem::path>& paths) {
         if (success) {
             ContextId old_context = recompui::try_close_current_context();
@@ -315,6 +369,7 @@ void ModMenu::open_install_dialog() {
             }
         }
     });
+#endif
 }
 
 void ModMenu::mod_toggled(bool enabled) {
