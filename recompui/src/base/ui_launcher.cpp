@@ -8,6 +8,7 @@
 #include "ultramodern/ultramodern.hpp"
 #include "nfd.h"
 #include <filesystem>
+#include <cstdlib>
 #include "elements/ui_svg.h"
 #include "elements/ui_config_page.h"
 #include "ui_utils.h"
@@ -408,7 +409,7 @@ namespace recompui {
     }
 
     void GameOptionsMenu::select_rom(std::function<void(bool)> callback) {
-        recompui::file::open_file_dialog([this, callback](bool success, const std::filesystem::path& path) {
+        auto handle_selected_rom = [this, callback](bool success, const std::filesystem::path& path) {
             if (success) {
                 recomp::RomValidationError rom_error = recomp::select_rom(path, this->game_id);
                 switch (rom_error) {
@@ -437,7 +438,17 @@ namespace recompui {
                 }
             }
             callback(false);
-        });
+        };
+
+        if (const char* auto_rom_path = getenv("RECOMP_AUTO_ROM_PATH")) {
+            const std::filesystem::path dev_rom_path = auto_rom_path;
+            if (std::filesystem::exists(dev_rom_path)) {
+                handle_selected_rom(true, dev_rom_path);
+                return;
+            }
+        }
+
+        recompui::file::open_file_dialog(handle_selected_rom);
     }
 
     GameOption *GameOptionsMenu::add_option(const std::string& title, std::function<void()> callback) {
