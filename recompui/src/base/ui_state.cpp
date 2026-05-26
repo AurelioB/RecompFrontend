@@ -904,8 +904,14 @@ void recompui::set_render_hooks() {
 }
 
 void recompui::message_box(const char* msg) {
+#ifdef __ANDROID__
+    // SDL's Android message-box path requires Java activity state. Standalone/native startup
+    // probes can hit this before an Activity exists, so log instead of dereferencing null JNI state.
+    printf("[ERROR] %s\n", msg);
+#else
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, recompui::programconfig::get_program_name().data(), msg, nullptr);
     printf("[ERROR] %s\n", msg);
+#endif
 }
 
 void recompui::show_context(ContextId context, std::string_view param) {
