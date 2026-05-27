@@ -115,7 +115,12 @@ namespace recompui {
     }
 
     std::filesystem::path file::get_program_path() {
-#if defined(__APPLE__)
+#if defined(__ANDROID__)
+        if (const char* program_path = getenv("APP_PROGRAM_PATH")) {
+            return program_path;
+        }
+        return SDL_AndroidGetInternalStoragePath();
+#elif defined(__APPLE__)
         return file::apple::get_bundle_resource_directory();
 #elif defined(__linux__) && defined(RECOMP_FLATPAK)
         return "/app/bin";
