@@ -9,6 +9,12 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <mutex>
+
+#if defined(__ANDROID__)
+#include <jni.h>
+#include <SDL_system.h>
+#endif
 
 #if defined(_WIN32)
 #include <Shlobj.h>
@@ -20,6 +26,44 @@
 #endif
 
 namespace recompui {
+#if defined(__ANDROID__)
+    namespace {
+        std::mutex android_file_dialog_mutex;
+        std::function<void(bool, const std::filesystem::path&)> android_file_dialog_callback;
+
+        bool launch_android_rom_file_picker() {
+            JNIEnv* env = static_cast<JNIEnv*>(SDL_AndroidGetJNIEnv());
+            jobject activity = static_cast<jobject>(SDL_AndroidGetActivity());
+            if (env == nullptr || activity == nullptr) {
+                return false;
+            }
+
+            jclass activity_class = env->GetObjectClass(activity);
+            if (activity_class == nullptr) {
+                env->DeleteLocalRef(activity);
+                return false;
+            }
+
+            jmethodID method = env->GetMethodID(activity_class, "openRomFilePicker", "()V");
+            if (method == nullptr) {
+                env->DeleteLocalRef(activity_class);
+                env->DeleteLocalRef(activity);
+                return false;
+            }
+
+            env->CallVoidMethod(activity, method);
+            bool ok = !env->ExceptionCheck();
+            if (!ok) {
+                env->ExceptionClear();
+            }
+
+            env->DeleteLocalRef(activity_class);
+            env->DeleteLocalRef(activity);
+            return ok;
+        }
+    }
+#endif
+
     static void perform_file_dialog_operation(const std::function<void(bool, const std::filesystem::path&)>& callback) {
         nfdnchar_t* native_path = nullptr;
         nfdresult_t result = NFD_OpenDialogN(&native_path, nullptr, 0, nullptr);
@@ -134,7 +178,16 @@ namespace recompui {
     }
 
     void file::open_file_dialog(std::function<void(bool success, const std::filesystem::path& path)> callback) {
-#ifdef __APPLE__
+#if defined(__ANDROID__)
+        {
+            std::lock_guard lock(android_file_dialog_mutex);
+            android_file_dialog_callback = std::move(callback);
+        }
+
+        if (!launch_android_rom_file_picker()) {
+            complete_android_file_dialog(false, {});
+        }
+#elif defined(__APPLE__)
         file::apple::dispatch_on_ui_thread([callback]() {
             perform_file_dialog_operation(callback);
         });
@@ -165,4 +218,19 @@ namespace recompui {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title, message, nullptr);
 #endif
     }
+
+#if defined(__ANDROID__)
+    void file::complete_android_file_dialog(bool success, const std::filesystem::path& path) {
+        std::function<void(bool, const std::filesystem::path&)> callback;
+        {
+            std::lock_guard lock(android_file_dialog_mutex);
+            callback = std::move(android_file_dialog_callback);
+            android_file_dialog_callback = nullptr;
+        }
+
+        if (callback) {
+            callback(success, path);
+        }
+    }
+#endif
 }
