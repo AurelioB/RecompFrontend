@@ -440,6 +440,7 @@ namespace recompui {
             callback(false);
         };
 
+#if !defined(__ANDROID__) || defined(BANJO_ANDROID_DEV_FULL_APK)
         if (const char* auto_rom_path = getenv("RECOMP_AUTO_ROM_PATH")) {
             const std::filesystem::path dev_rom_path = auto_rom_path;
             if (std::filesystem::exists(dev_rom_path)) {
@@ -447,6 +448,7 @@ namespace recompui {
                 return;
             }
         }
+#endif
 
         recompui::file::open_file_dialog(handle_selected_rom);
     }
