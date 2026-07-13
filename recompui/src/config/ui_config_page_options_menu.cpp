@@ -1,4 +1,5 @@
 #include "ui_config_page_options_menu.h"
+#include "recompui/config.h"
 
 
 namespace recompui {
@@ -109,6 +110,14 @@ void ConfigPageOptionsMenu::process_event(const Event &e) {
         break;
     }
     case EventType::Update: {
+        if (config->id == recompui::config::graphics::id) {
+            recompui::config::graphics::refresh_driver_status();
+        }
+        if (config->id == recompui::config::saves::id) {
+            // Providers may complete document I/O on background threads. Poll
+            // their synchronized state here so Config itself stays UI-thread-only.
+            recompui::config::saves::refresh_status();
+        }
         if (apply_button != nullptr) {
             bool apply_enabled = this->apply_button->is_enabled();
             bool is_dirty = config->is_dirty();
@@ -220,6 +229,28 @@ void ConfigPageOptionsMenu::render_config_options() {
                 }
                 case recomp::config::ConfigOptionType::Bool: {
                     element = context.create_element<ConfigOptionBool>(
+                        body_left_scroll,
+                        config_option.id,
+                        i,
+                        config,
+                        bound_set_option_value,
+                        bound_on_option_hover
+                    );
+                    break;
+                }
+                case recomp::config::ConfigOptionType::Info: {
+                    element = context.create_element<ConfigOptionInfo>(
+                        body_left_scroll,
+                        config_option.id,
+                        i,
+                        config,
+                        bound_set_option_value,
+                        bound_on_option_hover
+                    );
+                    break;
+                }
+                case recomp::config::ConfigOptionType::Action: {
+                    element = context.create_element<ConfigOptionAction>(
                         body_left_scroll,
                         config_option.id,
                         i,

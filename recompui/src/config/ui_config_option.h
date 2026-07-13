@@ -3,6 +3,7 @@
 #include "librecomp/config.hpp"
 #include "elements/ui_element.h"
 #include "elements/ui_label.h"
+#include "elements/ui_button.h"
 #include "elements/ui_radio.h"
 #include "elements/ui_text_input.h"
 #include "elements/ui_slider.h"
@@ -116,6 +117,46 @@ protected:
     std::string_view get_type_name() override { return "ConfigOptionBool"; }
 public:
     ConfigOptionBool(
+        ResourceId rid,
+        Element *parent,
+        std::string option_id,
+        size_t option_index,
+        const recomp::config::Config *config,
+        set_option_value_t set_option_value,
+        on_option_hover_t on_hover
+    );
+
+    void update_value() override;
+    void update_disabled() override;
+};
+
+class ConfigOptionInfo : public ConfigOptionElement {
+protected:
+    Label *value_label = nullptr;
+
+    std::string_view get_type_name() override { return "ConfigOptionInfo"; }
+public:
+    ConfigOptionInfo(
+        ResourceId rid,
+        Element *parent,
+        std::string option_id,
+        size_t option_index,
+        const recomp::config::Config *config,
+        set_option_value_t set_option_value,
+        on_option_hover_t on_hover
+    );
+
+    void update_value() override;
+    void update_disabled() override;
+};
+
+class ConfigOptionAction : public ConfigOptionElement {
+protected:
+    Button *button = nullptr;
+
+    std::string_view get_type_name() override { return "ConfigOptionAction"; }
+public:
+    ConfigOptionAction(
         ResourceId rid,
         Element *parent,
         std::string option_id,

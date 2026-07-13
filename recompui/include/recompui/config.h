@@ -2,6 +2,7 @@
 #define _RECOMP_UI_CONFIG_H_
 
 #include <vector>
+#include <functional>
 
 #include "librecomp/config.hpp"
 #include "elements/ui_modal.h"
@@ -61,11 +62,37 @@ namespace recompui {
                 inline const std::string hpfb_option = "hpfb_option";
                 inline const std::string rr_manual_value = "rr_manual_value";
                 inline const std::string ds_option = "ds_option";
+                inline const std::string graphics_driver_status = "graphics_driver_status";
+                inline const std::string graphics_driver_select = "graphics_driver_select";
+                inline const std::string graphics_driver_reset = "graphics_driver_reset";
+                inline const std::string graphics_driver_details = "graphics_driver_details";
+                inline const std::string graphics_driver_change_status = "graphics_driver_change_status";
             }
+
+            struct DriverSettingsProvider {
+                std::function<std::string()> status;
+                std::function<std::string()> details;
+                std::function<std::string()> change_status;
+                std::function<void()> select;
+                std::function<void()> reset;
+
+                std::string select_name = "Select Custom Driver...";
+                std::string select_description;
+                std::string select_button_text = "Open Picker";
+                std::string reset_name = "Reset to System Driver";
+                std::string reset_description;
+                std::string reset_button_text = "Reset Driver";
+            };
+
+            // Register before create_graphics_tab(). The provider and callbacks
+            // are copied by the frontend and may be replaced or cleared later.
+            void set_driver_settings_provider(DriverSettingsProvider provider);
+            void clear_driver_settings_provider();
     
             void update_msaa_supported(bool supported);
             void update_refresh_rate(uint32_t refresh_rate);
             void toggle_fullscreen();
+            void refresh_driver_status();
         }
 
         namespace sound {
@@ -77,6 +104,33 @@ namespace recompui {
             }
 
             double get_main_volume();
+        }
+
+        namespace saves {
+            inline const std::string id = "saves";
+            inline const std::string tab_name = "Save Management";
+
+            namespace options {
+                inline const std::string location = "save_location";
+                inline const std::string operation_status = "save_operation_status";
+                inline const std::string import_save = "save_import";
+                inline const std::string export_save = "save_export";
+                inline const std::string choose_folder = "save_choose_folder";
+                inline const std::string reset_folder = "save_reset_folder";
+            }
+
+            struct SaveSettingsProvider {
+                std::function<std::string()> location;
+                std::function<std::string()> operation_status;
+                std::function<void()> import_save;
+                std::function<void()> export_save;
+                std::function<void()> choose_folder;
+                std::function<void()> reset_folder;
+            };
+
+            void set_settings_provider(SaveSettingsProvider provider);
+            void clear_settings_provider();
+            void refresh_status();
         }
 
         namespace mods {
@@ -121,6 +175,7 @@ namespace recompui {
         // Prefab config tabs.
         // TODO: Explain how to hide/show options
         recomp::config::Config &create_general_tab(const GeneralTabOptions& options, const std::string &name = config::general::tab_name);
+        void create_save_management_tab(const std::string &name = config::saves::tab_name);
         void create_controls_tab(const std::string &name = config::controls::tab_name);
         recomp::config::Config &create_graphics_tab(const std::string &name = config::graphics::tab_name);
         recomp::config::Config &create_sound_tab(const std::string &name = config::sound::tab_name);

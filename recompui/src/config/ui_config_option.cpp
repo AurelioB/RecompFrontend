@@ -301,4 +301,70 @@ void ConfigOptionBool::update_disabled() {
     toggle->set_enabled(!disabled);
 };
 
+// ConfigOptionInfo
+ConfigOptionInfo::ConfigOptionInfo(
+    ResourceId rid,
+    Element *parent,
+    std::string option_id,
+    size_t option_index,
+    const recomp::config::Config *config,
+    set_option_value_t set_option_value,
+    on_option_hover_t on_hover
+) : ConfigOptionElement(rid, parent, option_id, option_index, config, set_option_value, on_hover)
+{
+    name_label->set_margin_bottom(4.0f);
+
+    ContextId context = recompui::get_current_context();
+    value_label = context.create_element<Label>(this, "", theme::Typography::LabelXS);
+    value_label->set_color(theme::color::Primary);
+    value_label->set_width(100.0f, Unit::Percent);
+
+    update_value();
+    update_disabled();
+};
+
+void ConfigOptionInfo::update_value() {
+    std::string value = std::get<std::string>(get_value());
+    value_label->set_text(value);
+};
+
+void ConfigOptionInfo::update_disabled() {
+    bool disabled = get_disabled();
+    set_enabled(!disabled);
+};
+
+// ConfigOptionAction
+ConfigOptionAction::ConfigOptionAction(
+    ResourceId rid,
+    Element *parent,
+    std::string option_id,
+    size_t option_index,
+    const recomp::config::Config *config,
+    set_option_value_t set_option_value,
+    on_option_hover_t on_hover
+) : ConfigOptionElement(rid, parent, option_id, option_index, config, set_option_value, on_hover)
+{
+    name_label->set_margin_bottom(4.0f);
+
+    ContextId context = recompui::get_current_context();
+    const auto &action_opt = config->get_option_config<recomp::config::ConfigOptionAction>(option_index);
+    button = context.create_element<Button>(this, action_opt.button_text, ButtonStyle::Secondary, ButtonSize::Medium);
+    button->add_pressed_callback([this]() {
+        const auto &action_opt = this->config->get_option_config<recomp::config::ConfigOptionAction>(this->option_index);
+        if (action_opt.callback) {
+            action_opt.callback();
+        }
+    });
+    update_value();
+    update_disabled();
+};
+
+void ConfigOptionAction::update_value() {
+};
+
+void ConfigOptionAction::update_disabled() {
+    bool disabled = get_disabled();
+    button->set_enabled(!disabled);
+};
+
 } // namespace recompui

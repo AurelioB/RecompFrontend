@@ -13,9 +13,9 @@
 
 #include "RmlUi/Core/RenderInterfaceCompatibility.h"
 
-#include "ui_renderer.h"
+#include "renderer/ui_renderer.h"
 
-// TODO: Forced game includes
+static constexpr bool enable_debug_option = false;
 #include "InterfaceVS.hlsl.spirv.h"
 // TODO: Forced game includes
 #include "InterfacePS.hlsl.spirv.h"
@@ -161,11 +161,16 @@ public:
         interface_ = interface;
         device_ = device;
 
-        // Enable 4X MSAA if supported by the device.
+        // Enable UI MSAA if supported by the device. Keep the Android path single-sampled:
+        // the Adreno/Vulkan stack on the AYN Thor repeatedly GPU-snapshotted when resolving
+        // the offscreen UI MSAA target, leaving the launcher visually black even though RmlUi
+        // was updating and rendering every frame.
+#if !defined(__ANDROID__)
         const plume::RenderSampleCounts desired_sample_count = plume::RenderSampleCount::COUNT_8;
         if (device_->getSampleCountsSupported(SwapChainFormat) & desired_sample_count) {
             multisampling_.sampleCount = desired_sample_count;
         }
+#endif
 
         vertex_buffer_.flags_ = plume::RenderBufferFlag::VERTEX;
         index_buffer_.flags_ = plume::RenderBufferFlag::INDEX;
