@@ -99,6 +99,11 @@ target_include_directories(recompui PUBLIC
 build_vertex_shader(recompui "shaders/InterfaceVS.hlsl" "shaders/InterfaceVS.hlsl")
 build_pixel_shader(recompui "shaders/InterfacePS.hlsl" "shaders/InterfacePS.hlsl")
 
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/renderer/ui_renderer.cpp
+    PROPERTIES OBJECT_DEPENDS
+        "${CMAKE_BINARY_DIR}/shaders/InterfaceVS.hlsl.spirv.h;${CMAKE_BINARY_DIR}/shaders/InterfacePS.hlsl.spirv.h"
+)
+
 target_include_directories(recompui PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include/recompui")
 
 if (WIN32)

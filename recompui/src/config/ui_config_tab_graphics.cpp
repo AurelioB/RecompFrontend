@@ -3,7 +3,14 @@
 #include "recompui/renderer.h"
 #include "util/steam_deck.h"
 
+#include <optional>
+
 static bool created_graphics_config = false;
+
+static std::optional<recompui::config::graphics::DriverSettingsProvider> driver_settings_provider;
+static std::string last_driver_status;
+static std::string last_driver_details;
+static std::string last_driver_change_status;
 
 namespace recompui {
     namespace config {
@@ -178,6 +185,44 @@ namespace recompui {
             new_config.ds_option = get_graphics_enum_value<int>(graphics::options::ds_option);
 
             ultramodern::renderer::set_graphics_config(new_config);
+        }
+
+        void graphics::set_driver_settings_provider(DriverSettingsProvider provider) {
+            driver_settings_provider = std::move(provider);
+            refresh_driver_status();
+        }
+
+        void graphics::clear_driver_settings_provider() {
+            driver_settings_provider.reset();
+        }
+
+        void graphics::refresh_driver_status() {
+            if (!created_graphics_config || !driver_settings_provider) {
+                return;
+            }
+
+            auto& config = get_graphics_config();
+            if (!config.has_option(graphics::options::graphics_driver_status)) {
+                return;
+            }
+
+            const auto& provider = *driver_settings_provider;
+            const std::string status_text = provider.status ? provider.status() : std::string{};
+            const std::string details_text = provider.details ? provider.details() : std::string{};
+            const std::string change_text = provider.change_status ? provider.change_status() : std::string{};
+
+            if (status_text != last_driver_status) {
+                config.update_option_value(graphics::options::graphics_driver_status, status_text);
+                last_driver_status = status_text;
+            }
+            if (details_text != last_driver_details) {
+                config.update_option_value(graphics::options::graphics_driver_details, details_text);
+                last_driver_details = details_text;
+            }
+            if (change_text != last_driver_change_status) {
+                config.update_option_value(graphics::options::graphics_driver_change_status, change_text);
+                last_driver_change_status = change_text;
+            }
         }
 
         void graphics::update_msaa_supported(bool supported) {
@@ -358,6 +403,51 @@ namespace recompui {
                 ultramodern::renderer::HighPrecisionFramebuffer::Off,
                 true
             );
+
+            if (driver_settings_provider) {
+                const auto& provider = *driver_settings_provider;
+                config.add_info_option(
+                    graphics::options::graphics_driver_status,
+                    "Graphics Driver",
+                    "Shows the graphics driver selected and used by the current process.",
+                    provider.status ? provider.status() : std::string{}
+                );
+                config.add_action_option(
+                    graphics::options::graphics_driver_select,
+                    provider.select_name,
+                    provider.select_description,
+                    provider.select_button_text,
+                    []() {
+                        if (driver_settings_provider && driver_settings_provider->select) {
+                            driver_settings_provider->select();
+                        }
+                    }
+                );
+                config.add_action_option(
+                    graphics::options::graphics_driver_reset,
+                    provider.reset_name,
+                    provider.reset_description,
+                    provider.reset_button_text,
+                    []() {
+                        if (driver_settings_provider && driver_settings_provider->reset) {
+                            driver_settings_provider->reset();
+                        }
+                    }
+                );
+                config.add_info_option(
+                    graphics::options::graphics_driver_details,
+                    "Loaded Driver Details",
+                    "Shows details reported by the active graphics driver.",
+                    provider.details ? provider.details() : std::string{}
+                );
+                config.add_info_option(
+                    graphics::options::graphics_driver_change_status,
+                    "Driver Change Status",
+                    "Shows whether a driver change is pending or failed.",
+                    provider.change_status ? provider.change_status() : std::string{}
+                );
+                graphics::refresh_driver_status();
+            }
 
             return config;
         }
